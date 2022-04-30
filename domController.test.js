@@ -27,16 +27,18 @@ describe("testing Dom functionnalities for updateList", () => {
         `cheesecake, quantity: ${inventory.cheesecake}`,
         { selector: "li" } // tell dom-testing to only look in list items
       )
-    ).toBeTruthy();
+    ).toBeInTheDocument();
 
-    expect(getByText(unorderedList, `danish, quantity: ${inventory.danish}`));
+    expect(
+      getByText(unorderedList, `danish, quantity: ${inventory.danish}`)
+    ).toBeInTheDocument();
 
     expect(
       getByText(
         unorderedList,
         `chocolate_croissant, quantity: ${inventory.chocolate_croissant}`
       )
-    );
+    ).toBeInTheDocument();
   });
 
   test("checking if paragraph is inserted", () => {
@@ -47,6 +49,6 @@ describe("testing Dom functionnalities for updateList", () => {
       screen.getByText(
         `the inventory has been updated - ${JSON.stringify(inventory)}`
       )
-    ).toBeTruthy();
+    ).toBeInTheDocument();
   });
 });
