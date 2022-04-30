@@ -9,6 +9,21 @@
   <body>
     <h1>inventory Content</h1>
     <ul id="list_items"></ul>
+    <form id="add-item-form">
+      <input
+        type="text"
+        name="itemName"
+        placeholder="insert item name"
+        required
+      />
+      <input
+        type="number"
+        name="quantity"
+        placeholder="item quantity"
+        required
+      />
+      <button type="submit">Add item to inventory</button>
+    </form>
 
     <script src="./bundle.js"></script>
   </body>
