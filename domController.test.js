@@ -1,5 +1,5 @@
 const fs = require("fs");
-const { getByText } = require("@testing-library/dom");
+const { screen, getByText } = require("@testing-library/dom");
 
 let initialHtml = (window.document.body.innerHTML =
   fs.readFileSync("./index.html"));
@@ -22,7 +22,11 @@ describe("testing Dom functionnalities for updateList", () => {
     expect(unorderedList.childNodes).toHaveLength(3);
 
     expect(
-      getByText(unorderedList, `cheesecake, quantity: ${inventory.cheesecake}`)
+      getByText(
+        unorderedList,
+        `cheesecake, quantity: ${inventory.cheesecake}`,
+        { selector: "li" } // tell dom-testing to only look in list items
+      )
     ).toBeTruthy();
 
     expect(getByText(unorderedList, `danish, quantity: ${inventory.danish}`));
@@ -33,5 +37,16 @@ describe("testing Dom functionnalities for updateList", () => {
         `chocolate_croissant, quantity: ${inventory.chocolate_croissant}`
       )
     );
+  });
+
+  test("checking if paragraph is inserted", () => {
+    const inventory = { cheesecake: 1, danish: 2 };
+    updateListItem(inventory);
+
+    expect(
+      screen.getByText(
+        `the inventory has been updated - ${JSON.stringify(inventory)}`
+      )
+    ).toBeTruthy();
   });
 });
