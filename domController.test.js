@@ -51,4 +51,14 @@ describe("testing Dom functionnalities for updateList", () => {
       )
     ).toBeInTheDocument();
   });
+
+  test("highlight in red if < 5", () => {
+    const inventory = { croissant: 4 };
+    updateListItem(inventory);
+    const listToCheck = document.getElementById("list_items");
+
+    expect(
+      getByText(listToCheck, `croissant, quantity: ${inventory.croissant}`)
+    ).toHaveStyle("color:red");
+  });
 });
