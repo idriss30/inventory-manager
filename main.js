@@ -1,8 +1,4 @@
-const { addItem, data } = require("./inventoryController");
-const { updateListItem } = require("./domController");
+const { handleAddItem } = require("./domController");
 
-addItem("cheesecake", 3);
-addItem("croissant", 2);
-addItem("danish", 4);
-
-updateListItem(data.inventory);
+const addItemForm = document.getElementById("add-item-form");
+addItemForm.addEventListener("submit", handleAddItem);
