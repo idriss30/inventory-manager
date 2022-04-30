@@ -5,6 +5,10 @@ const updateListItem = (inventory) => {
   Object.entries(inventory).forEach(([itemName, quantity]) => {
     let listItem = window.document.createElement("li");
     listItem.innerHTML = `${itemName}, quantity: ${quantity}`;
+
+    if (quantity < 5) {
+      listItem.style.color = "red";
+    }
     inventoryList.appendChild(listItem);
   });
   const inventoryContent = JSON.stringify(inventory);
