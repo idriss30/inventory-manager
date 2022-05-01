@@ -5,6 +5,9 @@ let initialHtml = (window.document.body.innerHTML =
   fs.readFileSync("./index.html"));
 
 const { updateListItem } = require("./domController");
+const { data } = require("./inventoryController");
+
+beforeEach(() => (data.inventory = {}));
 
 describe("testing Dom functionnalities for updateList", () => {
   beforeEach(() => {
@@ -64,10 +67,6 @@ describe("testing Dom functionnalities for updateList", () => {
 });
 
 describe("testing updateListItems", () => {
-  beforeEach(() => {
-    document.body.innerHTML = initialHtml;
-  });
-
   beforeEach(() => {
     localStorage.clear();
   });
