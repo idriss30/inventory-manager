@@ -62,3 +62,24 @@ describe("testing Dom functionnalities for updateList", () => {
     ).toHaveStyle("color:red");
   });
 });
+
+describe("testing updateListItems", () => {
+  beforeEach(() => {
+    document.body.innerHTML = initialHtml;
+  });
+
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  test("testing localStorage features", () => {
+    const inventoryMock = {
+      croissant: 2,
+      danish: 3,
+      coffee_roll: 2,
+    };
+    updateListItem(inventoryMock);
+    const localInventory = JSON.parse(localStorage.getItem("inventory"));
+    expect(localInventory).toEqual(inventoryMock);
+  });
+});
