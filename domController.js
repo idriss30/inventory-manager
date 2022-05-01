@@ -1,6 +1,9 @@
 const { addItem, data } = require("./inventoryController");
 
 const updateListItem = (inventory) => {
+  if (!inventory) return;
+
+  localStorage.setItem("inventory", JSON.stringify(inventory));
   const inventoryList = window.document.getElementById("list_items");
 
   inventoryList.innerHTML = "";
