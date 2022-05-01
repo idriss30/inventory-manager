@@ -1,5 +1,5 @@
 const fs = require("fs");
-const { screen, getByText } = require("@testing-library/dom");
+const { screen, getByText, fireEvent } = require("@testing-library/dom");
 
 const initialHtml = fs.readFileSync("./index.html");
 
@@ -14,10 +14,8 @@ test("add item with form", () => {
   screen.getByPlaceholderText("item name").value = "croissant";
   screen.getByPlaceholderText("item quantity").value = "2";
 
-  const event = new Event("submit");
   const addItemForm = document.querySelector("#add-item-form");
-  //trigger the event
-  addItemForm.dispatchEvent(event);
+  fireEvent.submit(addItemForm);
   const itemList = document.getElementById("list_items");
   expect(getByText(itemList, `croissant, quantity: 2`)).toBeInTheDocument();
 });
@@ -26,17 +24,14 @@ describe("handle Item name function", () => {
   test("entering available items", () => {
     const inputField = screen.getByPlaceholderText("item name");
     inputField.value = "cheesecake";
-    const event = new Event("input", { bubbles: true });
-    inputField.dispatchEvent(event);
+    fireEvent.input(inputField, { bubbles: true });
 
     expect(screen.getByText("cheesecake is valid")).toBeInTheDocument();
   });
 
   test("entering invalid item", () => {
     const input = screen.getByPlaceholderText("item name");
-    input.value = "chocolate";
-    const event = new Event("input", { bubbles: true });
-    input.dispatchEvent(event);
+    fireEvent.input(input, { target: { value: "chocolate" }, bubbles: true });
     expect(screen.getByText("chocolate is not valid")).toBeInTheDocument();
   });
 });
