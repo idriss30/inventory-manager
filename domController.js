@@ -20,15 +20,40 @@ const updateListItem = (inventory) => {
   window.document.body.appendChild(paragraph);
 };
 
-function handleAddItem(event) {
+const handleAddItem = (event) => {
   event.preventDefault();
   const { itemName, quantity } = event.target.elements;
 
   addItem(itemName.value, parseInt(quantity.value, 10));
   updateListItem(data.inventory);
-}
+};
 
+const checkFormValues = (event) => {
+  const validItems = ["cheesecake", "danish", "croissant"];
+  const itemName = document.querySelector('input[name="itemName"]');
+  const quantity = document.querySelector('input[name="quantity"');
+  const button = document.querySelector('button[type="submit"]');
+
+  const isItemNameValid = validItems.includes(itemName.value);
+  const isItemEmpty = itemName.value === "";
+  const isQuantityEmpty = quantity === "";
+  const errorMsg = window.document.getElementById("error-msg");
+  if (isItemEmpty) {
+    errorMsg.innerHTML = ``;
+  } else if (!isItemNameValid) {
+    errorMsg.innerHTML = `${itemName.value} is not valid`;
+  } else {
+    errorMsg.innerHTML = `${itemName.value} is valid`;
+  }
+
+  if (!isItemNameValid || isItemEmpty || isQuantityEmpty) {
+    button.disabled = true;
+  } else {
+    button.disabled = false;
+  }
+};
 module.exports = {
   updateListItem,
   handleAddItem,
+  checkFormValues,
 };
