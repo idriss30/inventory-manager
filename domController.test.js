@@ -4,7 +4,7 @@ const { screen, getByText } = require("@testing-library/dom");
 let initialHtml = (window.document.body.innerHTML =
   fs.readFileSync("./index.html"));
 
-const { updateListItem } = require("./domController");
+const { updateListItem, handleUndone } = require("./domController");
 const { data } = require("./inventoryController");
 
 beforeEach(() => (data.inventory = {}));
@@ -80,5 +80,54 @@ describe("testing updateListItems", () => {
     updateListItem(inventoryMock);
     const localInventory = JSON.parse(localStorage.getItem("inventory"));
     expect(localInventory).toEqual(inventoryMock);
+  });
+});
+
+describe("history items test", () => {
+  //clear the history before each test
+  beforeEach((done) => {
+    const clearHistory = () => {
+      if (history.state === null) {
+        window.removeEventListener("popstate", clearHistory);
+        return done();
+      }
+
+      history.back();
+    };
+
+    window.addEventListener("popstate", clearHistory);
+
+    clearHistory();
+  });
+
+  //spy on the listener
+  beforeEach(() => {
+    jest.spyOn(window, "addEventListener");
+  });
+  // remove all events listeners added to window created after each test
+  afterEach(() => {
+    const popstateListeners = window.addEventListener.mock.calls.filter(
+      ([eventName]) => eventName === "popstate"
+    );
+
+    popstateListeners.forEach(([eventName, handlerFn]) => {
+      window.removeEventListener(eventName, handlerFn);
+    });
+    jest.restoreAllMocks();
+  });
+
+  test("handleUndone function", (done) => {
+    window.addEventListener("popstate", () => {
+      expect(history.state).toEqual(null);
+      done();
+    });
+    history.pushState({ inventory: { cheesecake: 1 } }, "");
+    handleUndone();
+  });
+
+  test("going back from initial state", () => {
+    const mockBackHistory = jest.spyOn(history, "back");
+    handleUndone();
+    expect(mockBackHistory).not.toHaveBeenCalled();
   });
 });
