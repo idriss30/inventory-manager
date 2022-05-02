@@ -28,10 +28,11 @@ const handleAddItem = (event) => {
   const { itemName, quantity } = event.target.elements;
 
   addItem(itemName.value, parseInt(quantity.value, 10));
+  history.pushState({ inventory: { ...data.inventory } }, "");
   updateListItem(data.inventory);
 };
 
-const checkFormValues = (event) => {
+const checkFormValues = () => {
   const validItems = ["cheesecake", "danish", "croissant"];
   const itemName = document.querySelector('input[name="itemName"]');
   const quantity = document.querySelector('input[name="quantity"');
@@ -55,8 +56,21 @@ const checkFormValues = (event) => {
     button.disabled = false;
   }
 };
+
+const handleUndone = () => {
+  if (history.state === null) return;
+  history.back();
+};
+
+const handlePopState = () => {
+  data.inventory = history.state ? history.state.inventory : {};
+  updateListItem(data.inventory);
+};
+
 module.exports = {
   updateListItem,
   handleAddItem,
   checkFormValues,
+  handleUndone,
+  handlePopState,
 };
