@@ -17,10 +17,12 @@ const updateListItem = (inventory) => {
     inventoryList.appendChild(listItem);
   });
   const inventoryContent = JSON.stringify(inventory);
-  const paragraph = document.createElement("p");
-  paragraph.innerHTML = `the inventory has been updated - ${inventoryContent}`;
-
-  window.document.body.appendChild(paragraph);
+  const paragraph = document.getElementById("inventory-update");
+  if (Object.entries(inventory).length > 0) {
+    paragraph.innerHTML = `the inventory has been updated - ${inventoryContent}`;
+  } else {
+    paragraph.innerHTML = "";
+  }
 };
 
 const handleAddItem = (event) => {
@@ -40,7 +42,7 @@ const checkFormValues = () => {
 
   const isItemNameValid = validItems.includes(itemName.value);
   const isItemEmpty = itemName.value === "";
-  const isQuantityEmpty = quantity === "";
+  const isQuantityEmpty = quantity.value === "";
   const errorMsg = window.document.getElementById("error-msg");
   if (isItemEmpty) {
     errorMsg.innerHTML = ``;
