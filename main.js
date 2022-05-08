@@ -8,7 +8,9 @@ const {
 const { data } = require("./inventoryController");
 
 const addItemForm = document.getElementById("add-item-form");
-addItemForm.addEventListener("submit", handleAddItem);
+addItemForm.addEventListener("submit", async (e) => {
+  await handleAddItem(e);
+});
 addItemForm.addEventListener("input", checkFormValues);
 
 const undoBtn = document.getElementById("undo-btn");
