@@ -4,7 +4,8 @@
   "description": "testing front end app",
   "main": "index.js",
   "scripts": {
-    "build": "browserify main.js -o bundle.js"
+    "build": "browserify main.js -o bundle.js",
+    "test:front": "jest --testPathIgnorePatterns=server"
   },
   "author": "idriss",
   "license": "ISC",
@@ -12,8 +13,10 @@
     "@testing-library/dom": "^8.13.0",
     "@testing-library/jest-dom": "^5.16.4",
     "browserify": "^17.0.0",
+    "isomorphic-fetch": "^3.0.0",
     "jest": "^28.0.2",
-    "jest-environment-jsdom": "^28.0.2"
+    "jest-environment-jsdom": "^28.0.2",
+    "nock": "^13.2.4"
   },
   "dependencies": {
     "jsdom": "^19.0.0"
