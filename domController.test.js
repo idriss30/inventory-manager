@@ -1,5 +1,6 @@
 const fs = require("fs");
 const { screen, getByText } = require("@testing-library/dom");
+const nock = require("nock");
 
 let initialHtml = (window.document.body.innerHTML =
   fs.readFileSync("./index.html"));
@@ -11,7 +12,7 @@ const {
   handleAddItem,
   checkFormValues,
 } = require("./domController");
-const { data } = require("./inventoryController");
+const { data, API_ADDR } = require("./inventoryController");
 const {
   clearHistoryHook,
   removePopStateListeners,
@@ -106,6 +107,10 @@ describe("history items test", () => {
   // remove all events listeners added to window created after each test
   afterEach(() => {
     removePopStateListeners();
+    if (!nock.isDone()) {
+      nock.cleanAll();
+      throw new Error("not all endpoints received request");
+    }
   });
 
   test("handleUndone function", (done) => {
@@ -135,7 +140,7 @@ describe("history items test", () => {
     expect(listItems.childNodes).toHaveLength(2);
   });
 
-  test("add items to the page handleAddItem", () => {
+  test("add items to the page handleAddItem", async () => {
     const submitEvent = {
       preventDefault: jest.fn(),
       target: {
@@ -145,7 +150,13 @@ describe("history items test", () => {
         },
       },
     };
-    handleAddItem(submitEvent);
+    nock(API_ADDR)
+      .post(
+        /inventory\/.*$/,
+        JSON.stringify({ itemName: "cheesecake", quantity: 2 })
+      )
+      .reply(200);
+    await handleAddItem(submitEvent);
     const list = document.querySelector("#list_items");
 
     expect(submitEvent.preventDefault.mock.calls).toHaveLength(1);
@@ -153,7 +164,7 @@ describe("history items test", () => {
     expect(getByText(list, "cheesecake, quantity: 2"));
   });
 
-  test("checking history through handleAddItem", () => {
+  test("checking history through handleAddItem", async () => {
     const submitEvent = {
       preventDefault: jest.fn(),
       target: {
@@ -163,7 +174,10 @@ describe("history items test", () => {
         },
       },
     };
-    handleAddItem(submitEvent);
+    nock(API_ADDR)
+      .post(/inventory\/.*$/)
+      .reply(200);
+    await handleAddItem(submitEvent);
 
     const getHistory = history.state.inventory;
     expect(getHistory).toEqual({ cheesecake: 2 });

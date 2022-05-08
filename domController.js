@@ -25,11 +25,12 @@ const updateListItem = (inventory) => {
   }
 };
 
-const handleAddItem = (event) => {
+const handleAddItem = async (event) => {
   event.preventDefault();
   const { itemName, quantity } = event.target.elements;
 
-  addItem(itemName.value, parseInt(quantity.value, 10));
+  await addItem(itemName.value, parseInt(quantity.value, 10));
+
   history.pushState({ inventory: { ...data.inventory } }, "");
   updateListItem(data.inventory);
 };
