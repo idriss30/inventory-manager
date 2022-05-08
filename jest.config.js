@@ -1,4 +1,7 @@
 module.exports = {
   testEnvironment: "jsdom",
-  setupFilesAfterEnv: ["<rootDir>/setupJestDom.js"],
+  setupFilesAfterEnv: [
+    "<rootDir>/setupGlobalFetch.js",
+    "<rootDir>/setupJestDom.js",
+  ],
 };
