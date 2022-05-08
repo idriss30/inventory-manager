@@ -1,9 +1,16 @@
 const fs = require("fs");
-const { screen, getByText, fireEvent } = require("@testing-library/dom");
+const {
+  screen,
+  getByText,
+  fireEvent,
+  waitFor,
+} = require("@testing-library/dom");
 const {
   clearHistoryHook,
   removePopStateListeners,
 } = require("./testUtilities");
+const nock = require("nock");
+const { API_ADDR } = require("./inventoryController");
 
 const initialHtml = fs.readFileSync("./index.html");
 
@@ -16,15 +23,31 @@ beforeEach(() => {
 beforeEach(() => {
   localStorage.clear();
 });
-test("add item with form", () => {
+
+test("add item with form", async () => {
+  nock(API_ADDR)
+    .post(
+      /inventory\/.*$/,
+      JSON.stringify({ itemName: "croissant", quantity: 2 })
+    )
+    .reply(200);
   //replace input values with following
   screen.getByPlaceholderText("item name").value = "croissant";
   screen.getByPlaceholderText("item quantity").value = "2";
 
   const addItemForm = document.querySelector("#add-item-form");
+
   fireEvent.submit(addItemForm);
-  const itemList = document.getElementById("list_items");
-  expect(getByText(itemList, `croissant, quantity: 2`)).toBeInTheDocument();
+  const listItems = document.getElementById("list_items");
+
+  await waitFor(() => {
+    expect(getByText(listItems, "croissant, quantity: 2"));
+    expect(listItems.childNodes).toHaveLength(1);
+  });
+
+  if (!nock.isDone()) {
+    throw new Error("inventory post itemname was not reached");
+  }
 });
 
 describe("handle Add items function", () => {
@@ -51,8 +74,16 @@ describe("sessions persistence", () => {
 
   afterEach(() => {
     removePopStateListeners();
+    if (!nock.isDone()) {
+      nock.cleanAll();
+      throw new Error("some endpoints where not reached");
+    }
   });
-  test("checking localStorage persistence", () => {
+  test("checking localStorage persistence", async () => {
+    nock(API_ADDR)
+      .post(/inventory\/.*$/)
+      .reply(200);
+
     const nameField = screen.getByPlaceholderText("item name");
     fireEvent.input(nameField, {
       target: { value: "cheesecake" },
@@ -66,11 +97,13 @@ describe("sessions persistence", () => {
     fireEvent.click(btnSubmit);
 
     const listBefore = document.querySelector("#list_items");
-    expect(
-      getByText(listBefore, `cheesecake, quantity: 3`)
-    ).toBeInTheDocument();
 
-    expect(listBefore.childNodes).toHaveLength(1);
+    await waitFor(() => {
+      expect(
+        getByText(listBefore, `cheesecake, quantity: 3`)
+      ).toBeInTheDocument();
+      expect(listBefore.childNodes).toHaveLength(1);
+    });
 
     // equivalent to reload the page;
     window.document.body.innerHTML = initialHtml;
@@ -78,6 +111,7 @@ describe("sessions persistence", () => {
     require("./main.js"); // run main js again
 
     const listAfterReload = document.getElementById("list_items");
+
     expect(
       getByText(listAfterReload, `cheesecake, quantity: 3`)
     ).toBeInTheDocument();
@@ -85,17 +119,22 @@ describe("sessions persistence", () => {
     expect(listAfterReload.childNodes).toHaveLength(1);
   });
 
-  test("undo to one item", (done) => {
+  test("undo to one item", async () => {
     const itemName = screen.getByPlaceholderText("item name");
     const itemQty = screen.getByPlaceholderText("item quantity");
     const submitBtn = screen.getByText("Add item to inventory");
     const undobtn = screen.getByText("Undo");
+    const listItems = document.getElementById("list_items");
 
     //insert croissant
     fireEvent.input(itemName, { target: { value: "croissant" } });
     fireEvent.input(itemQty, { target: { value: "3" } });
 
     fireEvent.click(submitBtn);
+    await waitFor(() => {
+      expect(listItems.childNodes).toHaveLength(1);
+      expect(getByText(listItems, "croissant, quantity: 3"));
+    });
 
     // insert cheesecake
     fireEvent.input(itemName, { target: { value: "cheesecake" } });
@@ -103,14 +142,16 @@ describe("sessions persistence", () => {
 
     fireEvent.click(submitBtn);
 
-    expect(history.state.inventory).toEqual({ croissant: 3, cheesecake: 1 });
+    await waitFor(() => {
+      expect(history.state.inventory).toEqual({ croissant: 3, cheesecake: 1 });
+    });
 
     window.addEventListener("popstate", () => {
       const list = document.querySelector("#list_items");
       expect(history.state.inventory).toEqual({ croissant: 3 });
       expect(getByText(list, "croissant, quantity: 3")).toBeInTheDocument();
 
-      done();
+      return;
     });
 
     fireEvent.click(undobtn);
@@ -118,7 +159,7 @@ describe("sessions persistence", () => {
 
   // this test should fail because of first one because the popstate listener in previous test
   // solution will be to remove the listener in the beforeEach hook
-  test("checking undo to empty list", (done) => {
+  test("checking undo to empty list", async () => {
     let productName = screen.getByPlaceholderText("item name");
     fireEvent.input(productName, { target: { value: "croissant" } });
 
@@ -128,12 +169,14 @@ describe("sessions persistence", () => {
     const submitBtn = screen.getByText("Add item to inventory");
     fireEvent.click(submitBtn);
 
-    const undoBtn = screen.getByText("Undo");
+    await waitFor(() => {
+      expect(history.state.inventory).toEqual({ croissant: 5 });
+    });
 
-    expect(history.state.inventory).toEqual({ croissant: 5 });
+    const undoBtn = screen.getByText("Undo");
     window.addEventListener("popstate", () => {
       expect(history.state).toBe(null);
-      done();
+      return;
     });
 
     fireEvent.click(undoBtn);
