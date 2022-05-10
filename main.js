@@ -5,7 +5,7 @@ const {
   handleUndone,
   handlePopState,
 } = require("./domController");
-const { data } = require("./inventoryController");
+const { data, API_ADDR } = require("./inventoryController");
 
 const addItemForm = document.getElementById("add-item-form");
 addItemForm.addEventListener("submit", async (e) => {
@@ -17,8 +17,27 @@ const undoBtn = document.getElementById("undo-btn");
 undoBtn.addEventListener("click", handleUndone);
 
 window.addEventListener("popstate", handlePopState);
-const myStoredInventory = JSON.parse(localStorage.getItem("inventory"));
-if (myStoredInventory) {
-  data.inventory = myStoredInventory;
-  updateListItem(data.inventory);
-}
+
+const loadData = async () => {
+  try {
+    const inventoryFetch = await fetch(`${API_ADDR}/inventory/`);
+    if (inventoryFetch.status === 500) {
+      throw new Error();
+    }
+    const inventoryResponse = await inventoryFetch.json();
+    inventoryResponse.forEach((item) => {
+      data.inventory[item.productName] = item.productQty;
+    });
+
+    return updateListItem(data.inventory);
+  } catch (error) {
+    const myStoredInventory = JSON.parse(localStorage.getItem("inventory"));
+    if (myStoredInventory) {
+      updateListItem(myStoredInventory);
+    }
+  }
+};
+
+(async () => {
+  return await loadData();
+})();
