@@ -184,16 +184,12 @@ describe("sessions persistence", () => {
       expect(history.state.inventory).toEqual({ croissant: 2, danish: 1 });
       expect(listItems.childNodes).toHaveLength(2);
     });
-
     window.addEventListener("popstate", () => {
       expect(history.state.inventory).toEqual({ croissant: 2 });
     });
-
     fireEvent.click(undoBtn);
-
     await waitFor(() => {
-      expect(history.state.inventory).toEqual({ croissant: 2 });
-      expect(getByText(listItems, "croissant, quantity: 2"));
+      expect(listItems.childNodes).toHaveLength(1);
     });
   });
 });
