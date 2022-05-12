@@ -14,14 +14,16 @@ const { API_ADDR } = require("./inventoryController");
 
 const initialHtml = fs.readFileSync("./index.html");
 
-beforeEach(() => {
+beforeEach(async () => {
   document.body.innerHTML = initialHtml;
   jest.resetModules(); // make jest not using cache version of main.js
-  require("./main"); // attach event to the form everytime body changes
+  await require("./main"); // attach event to the form everytime body changes
+  jest.spyOn(window, "addEventListener");
 });
 
-beforeEach(() => {
+beforeEach((done) => {
   localStorage.clear();
+  clearHistoryHook(done);
 });
 
 test("add item with form", async () => {
@@ -67,118 +69,131 @@ describe("handle Add items function", () => {
 });
 
 describe("sessions persistence", () => {
-  beforeEach((done) => {
-    clearHistoryHook(done);
-    jest.spyOn(window, "addEventListener");
-  });
-
   afterEach(() => {
-    removePopStateListeners();
     if (!nock.isDone()) {
       nock.cleanAll();
-      throw new Error("some endpoints where not reached");
+      throw new Error("some endpoints were not reached");
     }
   });
-  test("checking localStorage persistence", async () => {
-    nock(API_ADDR)
-      .post(/inventory\/.*$/)
-      .reply(200);
-
-    const nameField = screen.getByPlaceholderText("item name");
-    fireEvent.input(nameField, {
-      target: { value: "cheesecake" },
-      bubbles: true,
-    });
-
-    const qtyField = screen.getByPlaceholderText("item quantity");
-    fireEvent.input(qtyField, { target: { value: "3" }, bubbles: true });
-
-    const btnSubmit = screen.getByText("Add item to inventory");
-    fireEvent.click(btnSubmit);
-
-    const listBefore = document.querySelector("#list_items");
-
-    await waitFor(() => {
-      expect(
-        getByText(listBefore, `cheesecake, quantity: 3`)
-      ).toBeInTheDocument();
-      expect(listBefore.childNodes).toHaveLength(1);
-    });
-
-    // equivalent to reload the page;
-    window.document.body.innerHTML = initialHtml;
-    jest.resetModules();
-    require("./main.js"); // run main js again
-
-    const listAfterReload = document.getElementById("list_items");
-
-    expect(
-      getByText(listAfterReload, `cheesecake, quantity: 3`)
-    ).toBeInTheDocument();
-
-    expect(listAfterReload.childNodes).toHaveLength(1);
+  afterEach(() => {
+    localStorage.clear();
+    removePopStateListeners();
   });
 
-  test("undo to one item", async () => {
+  test("checking localStorage persistence no server error loadData", async () => {
+    nock(API_ADDR)
+      .get("/inventory/")
+      .reply(200, [{ productName: "cheesecake", productQty: 2 }]);
+
+    jest.resetModules();
+    await require("./main");
+
+    const checkLocalStorage = JSON.parse(localStorage.getItem("inventory"));
+
+    const listItems = document.getElementById("list_items");
+    await waitFor(() => {
+      expect(listItems.childNodes).toHaveLength(1);
+      expect(
+        getByText(listItems, "cheesecake, quantity: 2")
+      ).toBeInTheDocument();
+    });
+
+    expect(checkLocalStorage).toEqual({ cheesecake: 2 });
+  });
+
+  test("checking localStorage persistence load Data from localStorage (server error)", async () => {
+    localStorage.setItem("inventory", JSON.stringify({ croissant: 2 }));
+    nock(API_ADDR).get("/inventory/").replyWithError(500);
+
+    jest.resetModules();
+    await require("./main");
+
+    const listItems = document.getElementById("list_items");
+    await waitFor(() => {
+      expect(
+        getByText(listItems, "croissant, quantity: 2")
+      ).toBeInTheDocument();
+    });
+  });
+
+  test("check undo to empty list", async () => {
+    nock(API_ADDR)
+      .post(/inventory\/.*$/)
+      .reply(201);
+
     const itemName = screen.getByPlaceholderText("item name");
     const itemQty = screen.getByPlaceholderText("item quantity");
     const submitBtn = screen.getByText("Add item to inventory");
-    const undobtn = screen.getByText("Undo");
+
+    fireEvent.input(itemName, {
+      target: { value: "cheesecake" },
+      bubbles: true,
+    });
+    fireEvent.input(itemQty, { target: { value: "10" }, bubbles: true });
+    fireEvent.click(submitBtn);
     const listItems = document.getElementById("list_items");
-
-    //insert croissant
-    fireEvent.input(itemName, { target: { value: "croissant" } });
-    fireEvent.input(itemQty, { target: { value: "3" } });
-
-    fireEvent.click(submitBtn);
     await waitFor(() => {
+      expect(history.state.inventory).toEqual({ cheesecake: 10 });
       expect(listItems.childNodes).toHaveLength(1);
-      expect(getByText(listItems, "croissant, quantity: 3"));
-    });
-
-    // insert cheesecake
-    fireEvent.input(itemName, { target: { value: "cheesecake" } });
-    fireEvent.input(itemQty, { target: { value: "1" } });
-
-    fireEvent.click(submitBtn);
-
-    await waitFor(() => {
-      expect(history.state.inventory).toEqual({ croissant: 3, cheesecake: 1 });
-    });
-
-    window.addEventListener("popstate", () => {
-      const list = document.querySelector("#list_items");
-      expect(history.state.inventory).toEqual({ croissant: 3 });
-      expect(getByText(list, "croissant, quantity: 3")).toBeInTheDocument();
-
-      return;
-    });
-
-    fireEvent.click(undobtn);
-  });
-
-  // this test should fail because of first one because the popstate listener in previous test
-  // solution will be to remove the listener in the beforeEach hook
-  test("checking undo to empty list", async () => {
-    let productName = screen.getByPlaceholderText("item name");
-    fireEvent.input(productName, { target: { value: "croissant" } });
-
-    let qtyName = screen.getByPlaceholderText("item quantity");
-    fireEvent.input(qtyName, { target: { value: "5" } });
-
-    const submitBtn = screen.getByText("Add item to inventory");
-    fireEvent.click(submitBtn);
-
-    await waitFor(() => {
-      expect(history.state.inventory).toEqual({ croissant: 5 });
     });
 
     const undoBtn = screen.getByText("Undo");
+
     window.addEventListener("popstate", () => {
-      expect(history.state).toBe(null);
-      return;
+      expect(history.state).toEqual(null);
     });
 
     fireEvent.click(undoBtn);
+
+    await waitFor(() => {
+      expect(listItems.childNodes).toHaveLength(0);
+    });
+  });
+
+  test("undo to one item with history", async () => {
+    nock(API_ADDR)
+      .post(/inventory\/.*$/)
+      .reply(201);
+
+    const prodName = screen.getByPlaceholderText("item name");
+    const prodQty = screen.getByPlaceholderText("item quantity");
+    const undoBtn = screen.getByText("Undo");
+    const submitBtn = screen.getByText("Add item to inventory");
+
+    fireEvent.input(prodName, {
+      target: { value: "croissant" },
+      bubbles: true,
+    });
+    fireEvent.input(prodQty, { target: { value: "2" }, bubbles: true });
+
+    fireEvent.click(submitBtn);
+
+    const listItems = document.getElementById("list_items");
+
+    await waitFor(() => {
+      expect(history.state.inventory).toEqual({ croissant: 2 });
+      expect(getByText(listItems, "croissant, quantity: 2"));
+    });
+
+    //adding second item
+    fireEvent.input(prodName, { target: { value: "danish" }, bubbles: true });
+    fireEvent.input(prodQty, { target: { value: "1" }, bubbles: true });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(history.state.inventory).toEqual({ croissant: 2, danish: 1 });
+      expect(listItems.childNodes).toHaveLength(2);
+    });
+
+    window.addEventListener("popstate", () => {
+      expect(history.state.inventory).toEqual({ croissant: 2 });
+    });
+
+    fireEvent.click(undoBtn);
+
+    await waitFor(() => {
+      expect(history.state.inventory).toEqual({ croissant: 2 });
+      expect(getByText(listItems, "croissant, quantity: 2"));
+    });
   });
 });
