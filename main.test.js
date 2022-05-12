@@ -172,7 +172,9 @@ describe("sessions persistence", () => {
 
     await waitFor(() => {
       expect(history.state.inventory).toEqual({ croissant: 2 });
-      expect(getByText(listItems, "croissant, quantity: 2"));
+      expect(
+        getByText(listItems, "croissant, quantity: 2")
+      ).toBeInTheDocument();
     });
 
     //adding second item
