@@ -31,13 +31,12 @@ const loadData = async () => {
 
     return updateListItem(data.inventory);
   } catch (error) {
-    const myStoredInventory = JSON.parse(localStorage.getItem("inventory"));
-    if (myStoredInventory) {
-      updateListItem(myStoredInventory);
+    const storedInventory = JSON.parse(localStorage.getItem("inventory"));
+    if (storedInventory) {
+      data.inventory = storedInventory;
+      updateListItem(storedInventory);
     }
   }
 };
 
-(async () => {
-  return await loadData();
-})();
+module.exports = loadData();
