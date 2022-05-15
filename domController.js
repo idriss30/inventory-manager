@@ -1,4 +1,5 @@
-const { addItem, data } = require("./inventoryController");
+const { addItem, data, API_ADDR } = require("./inventoryController");
+const fetch = require("isomorphic-fetch");
 
 const updateListItem = (inventory) => {
   if (!inventory) return;
@@ -28,10 +29,12 @@ const updateListItem = (inventory) => {
 const handleAddItem = async (event) => {
   event.preventDefault();
   const { itemName, quantity } = event.target.elements;
-
+  let item = itemName.value;
+  let qty = quantity.value;
   await addItem(itemName.value, parseInt(quantity.value, 10));
 
   history.pushState({ inventory: { ...data.inventory } }, "");
+  data.lastAddedItem.push({ name: item, quantity: qty });
   updateListItem(data.inventory);
 };
 
@@ -60,9 +63,26 @@ const checkFormValues = () => {
   }
 };
 
-const handleUndone = () => {
+const handleUndone = async () => {
   if (history.state === null) return;
+  const lastAdded = data.lastAddedItem[data.lastAddedItem.length - 1];
+  if (lastAdded !== undefined) {
+    const { name, quantity } = lastAdded;
+    await deleteItem(name, quantity);
+  }
   history.back();
+};
+
+const deleteItem = async (item, quantity) => {
+  try {
+    await fetch(`${API_ADDR}/inventory/${item}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quantity }),
+    });
+  } catch (error) {
+    throw error;
+  }
 };
 
 const handlePopState = () => {
