@@ -1,208 +1,139 @@
 const fs = require("fs");
+const initialHtml = fs.readFileSync("./index.html");
 const { screen, getByText } = require("@testing-library/dom");
 const nock = require("nock");
-
-let initialHtml = (window.document.body.innerHTML =
-  fs.readFileSync("./index.html"));
-
 const {
   updateListItem,
-  handleUndone,
-  handlePopState,
   handleAddItem,
   checkFormValues,
+  handleUndone,
+
+  handlePopState,
 } = require("./domController");
 const { data, API_ADDR } = require("./inventoryController");
-const {
-  clearHistoryHook,
-  removePopStateListeners,
-} = require("./testUtilities");
+const { clearHistoryHook } = require("./testUtilities");
 
-beforeEach(() => (data.inventory = {}));
+beforeEach(() => {
+  window.document.body.innerHTML = initialHtml;
+});
 
-describe("testing Dom functionnalities for updateList", () => {
-  beforeEach(() => {
-    window.document.body.innerHTML = initialHtml;
-  });
-  test("updateList dom function", () => {
-    const inventory = {
-      cheesecake: 1,
-      danish: 2,
-      chocolate_croissant: 5,
-    };
+beforeEach(() => {
+  data.inventory = {};
+  data.lastAddedItem = [];
+});
 
-    updateListItem(inventory);
-    const unorderedList = document.querySelector("#list_items");
-    expect(unorderedList.childNodes).toHaveLength(3);
+describe("testing update list items", () => {
+  test("update items with update ListFunction", () => {
+    data.inventory = { cheesecake: 5, croissant: 2 };
+    updateListItem(data.inventory);
 
+    const list = document.getElementById("list_items");
+    const paragraph = document.getElementById("inventory-update");
+    const inventory = localStorage.getItem("inventory");
+    expect(list.childNodes).toHaveLength(2);
+    expect(getByText(list, `cheesecake, quantity: 5`)).toBeInTheDocument();
+    expect(getByText(list, "croissant, quantity: 2")).toBeInTheDocument();
     expect(
-      getByText(
-        unorderedList,
-        `cheesecake, quantity: ${inventory.cheesecake}`,
-        { selector: "li" } // tell dom-testing to only look in list items
-      )
-    ).toBeInTheDocument();
-
-    expect(
-      getByText(unorderedList, `danish, quantity: ${inventory.danish}`)
-    ).toBeInTheDocument();
-
-    expect(
-      getByText(
-        unorderedList,
-        `chocolate_croissant, quantity: ${inventory.chocolate_croissant}`
-      )
+      getByText(paragraph, `the inventory has been updated - ${inventory}`)
     ).toBeInTheDocument();
   });
 
-  test("checking if paragraph is inserted", () => {
-    const inventory = { cheesecake: 1, danish: 2 };
-    updateListItem(inventory);
+  test("check red color when quantity inferior to 5", () => {
+    data.inventory = { cheesecake: 2 };
+    updateListItem(data.inventory);
 
-    expect(
-      screen.getByText(
-        `the inventory has been updated - ${JSON.stringify(inventory)}`
-      )
-    ).toBeInTheDocument();
-  });
-
-  test("highlight in red if < 5", () => {
-    const inventory = { croissant: 4 };
-    updateListItem(inventory);
-    const listToCheck = document.getElementById("list_items");
-
-    expect(
-      getByText(listToCheck, `croissant, quantity: ${inventory.croissant}`)
-    ).toHaveStyle("color:red");
+    const redElements = screen.getByText("cheesecake, quantity: 2");
+    expect(redElements).toHaveStyle({ color: "red" });
   });
 });
 
-describe("testing updateListItems", () => {
-  beforeEach(() => {
-    localStorage.clear();
+describe("handle Add items function", () => {
+  test("add items to inventory handleAddItems function", async () => {
+    nock(API_ADDR).post("/inventory/danish").reply(201);
+    const eventMock = {
+      preventDefault: jest.fn(),
+      target: {
+        elements: {
+          itemName: { value: "danish" },
+          quantity: { value: 2 },
+        },
+      },
+    };
+    const list = document.getElementById("list_items");
+
+    await handleAddItem(eventMock);
+    expect(list.childNodes).toHaveLength(1);
+    expect(eventMock.preventDefault.mock.calls).toHaveLength(1);
+    expect(history.state.inventory).toEqual({ danish: 2 });
+    expect(data.lastAddedItem[0]).toEqual({ name: "danish", quantity: 2 });
   });
 
-  test("testing localStorage features", () => {
-    const inventoryMock = {
-      croissant: 2,
-      danish: 3,
-      coffee_roll: 2,
-    };
-    updateListItem(inventoryMock);
-    const localInventory = JSON.parse(localStorage.getItem("inventory"));
-    expect(localInventory).toEqual(inventoryMock);
+  if (!nock.isDone()) {
+    nock.cleanAll();
+    throw new Error("inventory post interceptor was not reached");
+  }
+});
+
+describe("checkFormValues function", () => {
+  test("give valid product information button is activated", () => {
+    screen.getByPlaceholderText("item name").value = "cheesecake";
+    screen.getByPlaceholderText("item quantity").value = 2;
+
+    checkFormValues();
+    const button = screen.getByText("Add item to inventory");
+    expect(screen.getByText("cheesecake is valid")).toBeInTheDocument();
+    expect(button).not.toHaveAttribute("disabled");
+  });
+  test("give invalid information button is not activated", () => {
+    screen.getByPlaceholderText("item name").value = "bread";
+    screen.getByPlaceholderText("item quantity").value = 2;
+
+    checkFormValues();
+    const button = screen.getByText("Add item to inventory");
+    expect(screen.getByText("bread is not valid")).toBeInTheDocument();
+    expect(button).toHaveAttribute("disabled");
   });
 });
 
-describe("history items test", () => {
-  //clear the history before each test
+describe("testing history implementation", () => {
   beforeEach((done) => {
     clearHistoryHook(done);
   });
 
-  //spy on the listener
-  beforeEach(() => {
-    jest.spyOn(window, "addEventListener");
-  });
-  // remove all events listeners added to window created after each test
-  afterEach(() => {
-    removePopStateListeners();
-    if (!nock.isDone()) {
-      nock.cleanAll();
-      throw new Error("not all endpoints received request");
-    }
+  test("provide null history", async () => {
+    const mockRes = jest.spyOn(history, "back");
+
+    await handleUndone();
+    expect(mockRes).not.toHaveBeenCalled();
   });
 
-  test("handleUndone function", (done) => {
+  test("test handleundone function", (done) => {
+    nock(API_ADDR).delete("/inventory/cheesecake").reply(200);
+    const lastItem = { cheesecake: 2 };
+    history.pushState({ inventory: { ...lastItem } }, "");
+
     window.addEventListener("popstate", () => {
-      expect(history.state).toEqual(null);
+      expect(history.state).toBeNull();
       done();
     });
-    history.pushState({ inventory: { cheesecake: 1 } }, "");
-    handleUndone();
-  });
 
-  test("going back from initial state handleUndone", () => {
-    const mockBackHistory = jest.spyOn(history, "back");
-    handleUndone();
-    expect(mockBackHistory).not.toHaveBeenCalled();
-  });
-
-  test("handlePopStateFunction with current state items", () => {
-    const inventory = { cheesecake: 3, croissant: 5 };
-    history.pushState({ inventory: { ...inventory } }, "");
-
-    handlePopState();
-
-    const listItems = document.getElementById("list_items");
-    expect(getByText(listItems, "cheesecake, quantity: 3")).toBeInTheDocument();
-    expect(getByText(listItems, "croissant, quantity: 5")).toBeInTheDocument();
-    expect(listItems.childNodes).toHaveLength(2);
-  });
-
-  test("add items to the page handleAddItem", async () => {
-    const submitEvent = {
-      preventDefault: jest.fn(),
-      target: {
-        elements: {
-          itemName: { value: "cheesecake" },
-          quantity: { value: "2" },
-        },
-      },
-    };
-    nock(API_ADDR)
-      .post(
-        /inventory\/.*$/,
-        JSON.stringify({ itemName: "cheesecake", quantity: 2 })
-      )
-      .reply(200);
-    await handleAddItem(submitEvent);
-    const list = document.querySelector("#list_items");
-
-    expect(submitEvent.preventDefault.mock.calls).toHaveLength(1);
-
-    expect(getByText(list, "cheesecake, quantity: 2"));
-  });
-
-  test("checking history through handleAddItem", async () => {
-    const submitEvent = {
-      preventDefault: jest.fn(),
-      target: {
-        elements: {
-          itemName: { value: "cheesecake" },
-          quantity: { value: "2" },
-        },
-      },
-    };
-    nock(API_ADDR)
-      .post(/inventory\/.*$/)
-      .reply(200);
-    await handleAddItem(submitEvent);
-
-    const getHistory = history.state.inventory;
-    expect(getHistory).toEqual({ cheesecake: 2 });
+    const list = document.getElementById("list_items");
+    data.lastAddedItem.push({ name: "cheesecake", quantity: 2 });
+    //call handleUndone
+    expect(list.childNodes).toHaveLength(0);
+    handleUndone().then("fullfiled");
   });
 });
 
-describe("check form values", () => {
-  test("provide valid item name", () => {
-    const itemName = screen.getByPlaceholderText("item name");
-    itemName.value = "cheesecake";
+describe("handlePostateFunction", () => {
+  test("handle pop state with valid history", () => {
+    history.pushState({ inventory: { cheesecake: 2, croissant: 5 } }, "");
+    const listItems = document.getElementById("list_items");
 
-    checkFormValues();
-    const paragraphError = document.getElementById("error-msg");
-    expect(getByText(paragraphError, `${itemName.value} is valid`));
-  });
+    handlePopState();
 
-  test("provide invalid item name", () => {
-    const itemName = screen.getByPlaceholderText("item name");
-    itemName.value = "chocolate";
-    checkFormValues();
-    expect(
-      getByText(
-        document.getElementById("error-msg"),
-        `${itemName.value} is not valid`
-      )
-    );
+    expect(listItems.childNodes).toHaveLength(2);
+    expect(getByText(listItems, "cheesecake, quantity: 2")).toBeInTheDocument();
+    expect(getByText(listItems, "croissant, quantity: 5")).toBeInTheDocument();
   });
 });

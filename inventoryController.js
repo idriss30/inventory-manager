@@ -1,4 +1,7 @@
-const data = { inventory: {} };
+const data = {
+  inventory: {},
+  lastAddedItem: [],
+};
 
 const API_ADDR = "http://localhost:3000";
 const addItem = async (itemName, quantity) => {

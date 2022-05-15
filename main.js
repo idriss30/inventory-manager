@@ -14,7 +14,9 @@ addItemForm.addEventListener("submit", async (e) => {
 addItemForm.addEventListener("input", checkFormValues);
 
 const undoBtn = document.getElementById("undo-btn");
-undoBtn.addEventListener("click", handleUndone);
+undoBtn.addEventListener("click", async () => {
+  return await handleUndone();
+});
 
 window.addEventListener("popstate", handlePopState);
 

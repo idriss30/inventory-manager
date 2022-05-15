@@ -121,6 +121,10 @@ describe("sessions persistence", () => {
       .post(/inventory\/.*$/)
       .reply(201);
 
+    nock(API_ADDR)
+      .delete(/inventory\/.*$/)
+      .reply(201);
+
     const itemName = screen.getByPlaceholderText("item name");
     const itemQty = screen.getByPlaceholderText("item quantity");
     const submitBtn = screen.getByText("Add item to inventory");
@@ -153,6 +157,10 @@ describe("sessions persistence", () => {
   test("undo to one item with history", async () => {
     nock(API_ADDR)
       .post(/inventory\/.*$/)
+      .reply(201);
+
+    nock(API_ADDR)
+      .delete(/inventory\/.*$/)
       .reply(201);
 
     const prodName = screen.getByPlaceholderText("item name");
